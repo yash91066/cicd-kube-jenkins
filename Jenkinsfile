@@ -1,19 +1,19 @@
 pipeline {
 
     agent any
-/*
-	tools {
-        maven "maven3"
+
+    tools {
+        maven 'maven3'
     }
-*/
+
     environment {
         registry = "yashpatel2307/vprofileapp"
         registryCredential = 'dockerhub'
     }
 
-    stages{
+    stages {
 
-        stage('BUILD'){
+        stage('BUILD') {
             steps {
                 sh 'mvn clean install -DskipTests'
             }
@@ -25,19 +25,19 @@ pipeline {
             }
         }
 
-        stage('UNIT TEST'){
+        stage('UNIT TEST') {
             steps {
                 sh 'mvn test'
             }
         }
 
-        stage('INTEGRATION TEST'){
+        stage('INTEGRATION TEST') {
             steps {
                 sh 'mvn verify -DskipUnitTests'
             }
         }
 
-        stage ('CODE ANALYSIS WITH CHECKSTYLE'){
+        stage('CODE ANALYSIS WITH CHECKSTYLE') {
             steps {
                 sh 'mvn checkstyle:checkstyle'
             }
@@ -73,54 +73,36 @@ pipeline {
         }
 
         stage('build a docker image') {
-
-             steps {
-
+            steps {
                 script {
-
                     dockerImage = docker.build registry + ":V$BUILD_NUMBER"
                 }
-
             }
-
-
         }
 
         stage('upload docker image on dockerhub') {
-            steps{
-
+            steps {
                 script {
                     docker.withRegistry('', registryCredential) {
                         dockerImage.push("V$BUILD_NUMBER")
-                        dockerImage.pus('latest')
+                        dockerImage.push('latest')
                     }
                 }
             }
         }
 
         stage('remove unused docker image on dockerhub') {
-
             steps {
-                steps{
-                    sh "docker rmi $registry:V$BUILD_NUMBER"
-                }
+                sh "docker rmi $registry:V$BUILD_NUMBER"
             }
-
         }
 
         stage('kubernetes deploy') {
-            agent {label 'MYKOPS'}
+            agent { label 'MYKOPS' }
             steps {
                 sh "helm upgrade --install --force vprofile-stack helm/vprofilecharts --set appimage=${registry}:V${BUILD_NUMBER} --namespace prod"
             }
         }
 
-         
-
-        
-
-
     }
-
-
 }
